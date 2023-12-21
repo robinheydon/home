@@ -8,6 +8,10 @@ var all_search_data = undefined;
 var first_search_item = undefined;
 var last_search_item = undefined;
 
+function safe_html (string) {
+    return string.replace (/</g, '&lt;');
+}
+
 function body_onload () {
     let search_text = document.getElementById ("search_text");
     search_text.value = "";
@@ -24,17 +28,12 @@ function body_onload () {
 function count_words (words, string, score) {
     let simple_string = string.toLowerCase ().replace (/[^@#a-z_ ]/gi, ' ').split (' ')
 
-    for (let word_index in simple_string)
-    {
+    for (let word_index in simple_string) {
         let word = simple_string[word_index];
-        if (word.length > 1)
-        {
-            if (word in words)
-            {
+        if (word.length > 0) {
+            if (word in words) {
                 words[word] += score;
-            }
-            else
-            {
+            } else {
                 words[word] = score;
             }
         }
@@ -44,8 +43,7 @@ function count_words (words, string, score) {
 function build_search_data (data) {
     let dictionary = []
 
-    for (let index in data)
-    {
+    for (let index in data) {
         let words = {};
         let item = data[index];
 
@@ -67,109 +65,114 @@ document.addEventListener ('keydown',
         let search_text = document.getElementById ("search_text");
         let search_results = document.getElementById ("search_results");
 
-        if (event.key == 'Escape')
-        {
+        if (event.key == 'Escape') {
             search_text.value = "";
             document.activeElement.blur ();
             search_text.focus ();
-        }
-        else if (event.key == 'Enter')
-        {
-            if (document.activeElement == search_text)
-            {
+        } else if (event.key == 'Enter') {
+            if (document.activeElement == search_text) {
                 event.preventDefault ();
-                if (first_search_item)
-                {
+                if (first_search_item) {
                     first_search_item.click ();
-                }
-                else
-                {
+                } else {
                     window.location.href = "https://duckduckgo.com/?q=" + encodeURIComponent (search_text.value);
                 }
             }
-        }
-        else if (event.key == 'ArrowDown')
-        {
-            if (document.activeElement == search_text)
-            {
+        } else if (event.key == 'ArrowDown') {
+            if (document.activeElement == search_text) {
                 event.preventDefault ();
-                if (first_search_item)
-                {
+                if (first_search_item) {
                     first_search_item.focus ();
                 }
-            }
-            else if (document.activeElement.parentElement.parentElement == search_results)
-            {
+            } else if (document.activeElement.parentElement.parentElement == search_results) {
                 event.preventDefault ();
-                if (document.activeElement == last_search_item)
-                {
+                if (document.activeElement == last_search_item) {
                     last_search_item.focus ();
-                }
-                else
-                {
+                } else {
                     document.activeElement.parentElement.nextSibling.firstElementChild.focus ();
                 }
             }
-        }
-        else if (event.key == 'ArrowUp')
-        {
-            if (document.activeElement == search_text)
-            {
+        } else if (event.key == 'ArrowUp') {
+            if (document.activeElement == search_text) {
                 event.preventDefault ();
-                if (last_search_item)
-                {
+                if (last_search_item) {
                     last_search_item.focus ();
                 }
-            }
-            else if (document.activeElement.parentElement.parentElement == search_results)
-            {
+            } else if (document.activeElement.parentElement.parentElement == search_results) {
                 event.preventDefault ();
-                if (document.activeElement == first_search_item)
-                {
+                if (document.activeElement == first_search_item) {
                     first_search_item.focus ();
-                }
-                else
-                {
+                } else {
                     document.activeElement.parentElement.previousSibling.firstElementChild.focus ();
                 }
             }
-        }
-        else
-        {
+        } else {
             search_text.focus ();
         }
     }
 );
 
 function do_search (term) {
-    let results = execute_search (term);
-    let search_results = document.getElementById ("search_results");
+    if (term[0] == '!') {
+        let lower_term = term.toLowerCase ()
+        let index = lower_term.indexOf (' ');
+        let bang_text = '';
+        let search_text = '';
+        if (index > 0) {
+            bang_text = term.substring (1, index);
+            search_text = term.substring (index + 1);
+        } else {
+            bang_text = term.substring (1);
+        }
+        let content = '';
+        let found_bang = false
+        for (let index in bang_searches) {
+            let bang_search = bang_searches[index];
+            if (bang_text == bang_search.bang) {
+                found_bang = true
+                content = content + '<li>' +
+                    '<a href="' + bang_search.search + encodeURIComponent (search_text) + '">' +
+                    bang_search.name + ' : ' + safe_html (search_text)
+                    '</a>' +
+                    '</li>';
+                break;
+            }
+        }
+        search_results.innerHTML = content;
+        if (found_bang) {
+            first_search_item = search_results.firstChild.firstElementChild;
+            last_search_item = search_results.lastChild.firstElementChild;
+        } else {
+            first_search_item = undefined;
+            last_search_item = undefined;
+        }
+    } else {
+        let results = execute_search (term);
+        let search_results = document.getElementById ("search_results");
 
-    let content = '';
+        let content = '';
 
-    for (let index in results.slice (0, 25))
-    {
-        let page = results[index].page;
-        let score = results[index].score;
-        content = content +
-            '<li>' +
-            '<a href="' + page.link + '">' +
-            page.title +
-            '</a>'
-            '</li>';
-    }
+        for (let index in results.slice (0, 25)) {
+            let page = results[index].page;
+            let score = Math.floor (results[index].score);
+            let title = safe_html (page.title);
+            content = content +
+                '<li>' +
+                '<a href="' + page.link + '">' +
+                title + ' : ' + score.toString () + '%' +
+                '</a>'
+                '</li>';
+        }
 
-    search_results.innerHTML = content;
+        search_results.innerHTML = content;
 
-    if (results.length > 0)
-    {
-        first_search_item = search_results.firstChild.firstElementChild;
-        last_search_item = search_results.lastChild.firstElementChild;
-    }
-    else
-    {
-        first_search_item = undefined;
-        last_search_item = undefined;
+        if (results.length > 0) {
+            first_search_item = search_results.firstChild.firstElementChild;
+            last_search_item = search_results.lastChild.firstElementChild;
+        } else {
+            first_search_item = undefined;
+            last_search_item = undefined;
+        }
     }
 }
 
@@ -181,58 +184,45 @@ function execute_search (term) {
     let top_score = 0;
     let expected_count = 0;
 
-    for (let term_word in term_words)
-    {
+    for (let term_word in term_words) {
         expected_count += 1;
     }
 
-    for (page_index in all_search_data)
-    {
+    for (let page_index in all_search_data) {
         let page = all_search_data[page_index];
 
         let score = 0;
         let count = 0;
 
-        for (let term_word in term_words)
-        {
+        for (let term_word in term_words) {
             let found = false;
-            for (let page_word in page.words)
-            {
+            for (let page_word in page.words) {
                 let page_word_score = page.words[page_word];
-                if (term_word == page_word)
-                {
+                if (term_word == page_word) {
                     found = true;
                     score += page_word_score;
-                }
-                else if (page_word.startsWith (term_word))
-                {
+                } else if (page_word.startsWith (term_word)) {
                     found = true;
                     score += page_word_score * 0.5;
-                }
-                else if (page_word.includes (term_word))
-                {
+                } else if (page_word.includes (term_word)) {
                     found = true;
                     score += page_word_score * 0.2;
                 }
             }
-            if (found)
-            {
+            if (found) {
                 count += 1;
             }
         }
 
-        if ((score > 0) && (count == expected_count))
-        {
+        if ((score > 0) && (count == expected_count)) {
             results.push ({"page": page, "score": score});
-            if (score > top_score)
-            {
+            if (score > top_score) {
                 top_score = score;
             }
         }
     }
 
-    for (let index in results)
-    {
+    for (let index in results) {
         results[index].score = 100 * results[index].score / top_score;
     }
 
@@ -240,6 +230,25 @@ function execute_search (term) {
 
     return results;
 }
+
+var bang_searches =
+[
+    {
+        "bang": "py",
+        "name": "Python Docs Search",
+        "search": "https://docs.python.org/3/search.html?q="
+    },
+    {
+        "bang": "zig",
+        "name": "Zig Standard Library Search",
+        "search": "https://ziglang.org/documentation/master/std/#A;std?",
+    },
+    {
+        "bang": "wiki",
+        "name": "Wiki Search",
+        "search": "https://en.wikipedia.org/w/index.php?search=",
+    }
+];
 
 var search_data =
 [
@@ -321,32 +330,117 @@ var search_data =
     {
         "title": "SQLite",
         "link": "https://www.sqlite.org/docs.html",
-        "terms": "SQL",
+        "terms": "SQL"
     },
     {
         "title": "SQLite Syntax",
         "link": "https://www.sqlite.org/lang.html",
-        "terms": "",
+        "terms": ""
     },
     {
         "title": "SQLite Select Syntax",
         "link": "https://www.sqlite.org/lang_select.html",
-        "terms": "",
+        "terms": ""
     },
     {
         "title": "SQLite Update Syntax",
         "link": "https://www.sqlite.org/lang_update.html",
-        "terms": "",
+        "terms": ""
     },
     {
         "title": "SQLite C API",
         "link": "https://www.sqlite.org/c3ref/intro.html",
-        "terms": "",
+        "terms": ""
     },
     {
         "title": "zlib 1.3",
         "link": "https://www.zlib.net/manual.html",
-        "terms": "",
+        "terms": ""
+    },
+    {
+        "title": "Allegro",
+        "link": "https://liballeg.org/",
+        "terms": "game programming library"
+    },
+    {
+        "title": "SDL",
+        "link": "https://libsdl.org/",
+        "terms": "simple directmedia layer game programming library"
+    },
+    {
+        "title": "Zig Gamedev",
+        "link": "https://github.com/michal-z/zig-gamedev/",
+        "terms": "zig game development"
+    },
+    {
+        "title": "Mach",
+        "link": "https://machengine.org/",
+        "terms": "zig game engine"
+    },
+    {
+        "title": "BBC News",
+        "link": "https://www.bbc.co.uk/news/",
+        "terms": ""
+    },
+    {
+        "title": "BBC iPlayer",
+        "link": "https://www.bbc.co.uk/iplayer/",
+        "terms": "on demand"
+    },
+    {
+        "title": "NFL",
+        "link": "https://www.nfl.com/",
+        "terms": "National Football League"
+    },
+    {
+        "title": "Formula 1",
+        "link": "https://www.formula1.com/",
+        "terms": "F1"
+    },
+    {
+        "title": "MVHR",
+        "link": "https://www.airflowadroit.com/",
+        "terms": "Mechanical Ventilation Heat Recovery"
+    },
+    {
+        "title": "Tado",
+        "link": "https://app.tado.com/en/main/home",
+        "terms": "Heating Cooling"
+    },
+    {
+        "title": "Zoopla",
+        "link": "https://www.zoopla.co.uk/",
+        "terms": "Home"
+    },
+    {
+        "title": "Scan",
+        "link": "https://www.scan.co.uk/",
+        "terms": "Scan Computers PC"
+    },
+    {
+        "title": "Amazon",
+        "link": "https://www.amazon.co.uk/",
+        "terms": "Scan Computers PC"
+    },
+    {
+        "title": "Camcycle",
+        "link": "https://www.camcycle.org.uk/",
+        "terms": "Cambridge Cycling Campaign"
+    },
+    {
+        "title": "xkcd",
+        "link": "https://xkcd.com/",
+        "terms": ""
+    },
+    {
+        "title": "Discord",
+        "link": "https://discord.com/",
+        "terms": ""
+    },
+    {
+        "title": "First Direct",
+        "link": "https://www.firstdirect.com/",
+        "terms": "bank savings"
     }
 ]
 
