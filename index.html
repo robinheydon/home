@@ -75,7 +75,7 @@ document.addEventListener ('keydown',
                 if (first_search_item) {
                     first_search_item.click ();
                 } else {
-                    window.location.href = "https://duckduckgo.com/?q=" + encodeURIComponent (search_text.value);
+                    window.location.href = "https://duckduckgo.com/?q=" + encodeURIComponent (search_text.value) + "+-site%3Awww.reddit.com";
                 }
             }
         } else if (event.key == 'ArrowDown') {
@@ -399,7 +399,7 @@ var search_data =
     },
     {
         "title": "MVHR",
-        "link": "https://www.airflowadroit.com/",
+        "link": "https://www.airflowadroitcontrol.com/",
         "terms": "Mechanical Ventilation Heat Recovery"
     },
     {
